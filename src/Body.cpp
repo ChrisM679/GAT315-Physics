@@ -1,18 +1,29 @@
-#include "Body.h"
+#include "body.h"
 
-void Body::AddForce(Vector2 force)
+void Body::AddForce(Vector2 force, ForceMode forceMode)
 {
-    acceleration += Vector2Scale(force, 1.0f / mass);
+    if (bodyType != BodyType::Dynamic) return;
+
+    switch (forceMode)
+	{
+	case ForceMode::Force:
+		acceleration += force * inverseMass;
+		break;
+	case ForceMode::Impulse:
+		velocity += force * inverseMass;
+		break;
+	case ForceMode::Acceleration:
+		acceleration += force;
+		break;
+	case ForceMode::VelocityChange:
+		velocity += force;
+		break;
+	}
+
+    acceleration += force / mass;
 }
 
-void Body::ExplicitEuler(float dt)
+void Body::Draw() const
 {
-    position += velocity * dt;
-    velocity += acceleration * dt;
-}
-
-void Body::SemiImplicitEuler(float dt)
-{
-    velocity += acceleration * dt;
-    position += velocity * dt;
+    DrawCircleV(position, size, LIME);
 }

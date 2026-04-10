@@ -9,15 +9,20 @@ by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit h
 
 #include "raylib.h"
 #include "raymath.h"
+
 #include "resource_dir.h"
-#include "World.h"
-#include "Random.h"
-#include <cmath>
+#include <vector>
+#include <string>
+
+#include "body.h"
+#include "random.h"
+#include "integrator.h"
+#include "world.h"
+#include "point_effector.h"
+#include "gravitation_effector.h"
 
 int main()
 {
-    // Initialize the world
-    World world;
 
     SetRandomSeed(5);
 
@@ -27,47 +32,52 @@ int main()
     SearchAndSetResourceDir("resources");
     Texture wabbit = LoadTexture("wabbit_alpha.png");
 
+	//SetTargetFPS(60);
+
+    World world;
+	//world.AddEffector(new PointEffector(Vector2{ 400,300 }, 100.0f, 500.0f));
+	//world.AddEffector(new GravitationalEffector(100000.0f));
+
+	float timeAccum = 0.0f;
+	float fiexedTimeStep = 1.0f / 60.0f;
+
     // Game loop
     while (!WindowShouldClose()) // Run the loop until the user presses ESCAPE or presses the Close button on the window
     {
         float dt = GetFrameTime();
 
         // Spawn bodies on left mouse click
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || (IsKeyDown(KEY_GRAVE) && IsMouseButtonDown(MOUSE_BUTTON_LEFT)))
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) || 
+            (IsKeyDown(KEY_GRAVE) && IsMouseButtonDown(MOUSE_BUTTON_LEFT)))
         {
             Body body;
+
+			body.bodyType = (IsKeyDown(KEY_LEFT_ALT)) ? BodyType::Static : BodyType::Dynamic;
+
             body.position = GetMousePosition();
 
             float angle = GetRandomFloat() * 2.0f * PI;
             Vector2 direction = { cosf(angle), sinf(angle) };
 
-            body.velocity = direction * (50.0f + GetRandomFloat(300.0f));
-            body.acceleration = Vector2{ 0, 0 };
+			//body.AddForce(direction * (50.0f + GetRandomFloat(300.0f)), ForceMode::VelocityChange);
+
             body.size = 5.0f + GetRandomFloat(20.0f);
             body.restitution = 0.5f + GetRandomFloat(0.5f);
-            body.mass = 1.0f;
+            body.mass = body.size;
+			body.inverseMass = (body.bodyType == BodyType::Static) ? 0 : 1.0f / body.mass;
+            body.gravityScale = 0.0f;
+			body.damping = 0.1f;
 
             world.AddBody(body);
         }
-
-        // Apply forces on right mouse button hold
-        if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
-        {
-            Vector2 position = GetMousePosition();
-            for (auto& body : world.bodies)
-            {
-                Vector2 direction = position - body.position;
-                if (Vector2Length(direction) <= 100.0f)
-                {
-                    Vector2 force = Vector2Normalize(direction) * 10000.0f;
-                    body.AddForce(force);
-                }
-            }
-            DrawCircleLinesV(position, 100, ORANGE);
-        }
-
         // Update the world
-        world.Step(dt);
+		timeAccum += dt;
+
+        while (timeAccum >= fiexedTimeStep)
+        {
+            world.Step(fiexedTimeStep);
+            timeAccum -= fiexedTimeStep;
+        }
 
         // Drawing
         BeginDrawing();
@@ -76,10 +86,12 @@ int main()
         ClearBackground(BLACK);
 
         // Draw some text using the default font
-        DrawText("Hello Raylib", 200, 200, 20, WHITE);
+		std::string fpsText = "FPS: ";
+        fpsText += std::to_string(GetFPS());
+        DrawText(fpsText.c_str(), 40, 40, 20, WHITE);
 
         // Draw our texture to the screen
-        DrawTexture(wabbit, 400, 200, WHITE);
+        //DrawTexture(wabbit, 400, 200, WHITE);
 
         // Draw the world
         world.Draw();
