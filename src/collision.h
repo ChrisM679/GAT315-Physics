@@ -15,3 +15,4 @@ struct Contact
 
 void CreateContacts(std::vector<Body>& bodies, std::vector<Contact>& contacts);
 void SeparateContacts(std::vector<Contact>& contacts);
+void ResolveContacts(std::vector<Contact>& contacts);

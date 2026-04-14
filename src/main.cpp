@@ -59,7 +59,7 @@ int main()
             float angle = GetRandomFloat() * 2.0f * PI;
             Vector2 direction = { cosf(angle), sinf(angle) };
 
-			//body.AddForce(direction * (50.0f + GetRandomFloat(300.0f)), ForceMode::VelocityChange);
+			body.AddForce(direction * (50.0f + GetRandomFloat(300.0f)), ForceMode::VelocityChange);
 
             body.size = 5.0f + GetRandomFloat(20.0f);
             body.restitution = 0.5f + GetRandomFloat(0.5f);
