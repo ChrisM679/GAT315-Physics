@@ -7,36 +7,27 @@ Vector2 World::gravity{ 0, 9.81f };
 
 void World::Step(float dt)
 {
-    for (auto& body : bodies) body.acceleration = gravity * body.gravityScale * 100.0f;
+	// Reset acceleration each frame before accumulating forces.
+	// Previously this was setting acceleration directly which overwrote
+	// anything effectors added, and never cleared it between frames.
+	for (auto& body : bodies) body.acceleration = { 0.0f, 0.0f };
 
+	// Apply gravity as an acceleration force (world units, no 100x scale needed)
+	for (auto& body : bodies) body.AddForce(gravity * body.gravityScale, ForceMode::Acceleration);
+
+	// Apply effectors (point, drag, area, etc.)
 	for (auto& effector : effectors) effector->Apply(bodies);
 
-    /*
-    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
-    {
-        Vector2 position = GetMousePosition();
-        for (auto& body : bodies)
-        {
-            Vector2 direction = body.position - position;
+	// Integrate
+	for (auto& body : bodies) SemiImplicitEuler(body, dt);
 
-            if (Vector2Length(direction) <= 100.0f)
-            {
-                Vector2 force = Vector2Normalize(direction) * 10000.0f;
-            }
-        }
-
-        DrawCircleLinesV(position, 100.0f, RED);
-    }
-    */
-
-    for (auto& body : bodies) SemiImplicitEuler(body, dt);
-    UpdateCollision();
+	for (int i = 0; i < 4; ++i) UpdateCollision();
 }
 
 void World::Draw()
 {
-    for (auto& body : bodies) body.Draw();
-    for (auto& effector : effectors) effector->Draw();
+	for (const auto& body : bodies) body.Draw();
+	for (auto& effector : effectors) effector->Draw();
 }
 
 void World::AddBody(const Body& body)
@@ -49,6 +40,18 @@ void World::AddEffector(Effector* effector)
 	effectors.push_back(effector);
 }
 
+Body* World::GetBodyIntersect(const Vector2 position)
+{
+	for (auto& body : bodies)
+	{
+		if (CheckCollisionPointCircle(position, body.position, body.size))
+		{
+			return &body;
+		}
+	}
+	return nullptr;
+}
+
 void World::UpdateCollision()
 {
 	contacts.clear();
@@ -56,27 +59,27 @@ void World::UpdateCollision()
 	SeparateContacts(contacts);
 	ResolveContacts(contacts);
 
-	// collision
+	// Collision boundaries use world-space units via boundsMin/boundsMax
 	for (auto& body : bodies)
 	{
-		if (body.position.x + body.size > GetScreenWidth())
+		if (body.position.x + body.size > boundsMax.x)
 		{
-			body.position.x = GetScreenWidth() - body.size;
+			body.position.x = boundsMax.x - body.size;
 			body.velocity.x *= -body.restitution;
 		}
-		if (body.position.x - body.size < 0)
+		if (body.position.x - body.size < boundsMin.x)
 		{
-			body.position.x = body.size;
+			body.position.x = boundsMin.x + body.size;
 			body.velocity.x *= -body.restitution;
 		}
-		if (body.position.y + body.size > GetScreenHeight())
+		if (body.position.y + body.size > boundsMax.y)
 		{
-			body.position.y = GetScreenHeight() - body.size;
+			body.position.y = boundsMax.y - body.size;
 			body.velocity.y *= -body.restitution;
 		}
-		if (body.position.y - body.size < 0)
+		if (body.position.y - body.size < boundsMin.y)
 		{
-			body.position.y = body.size;
+			body.position.y = boundsMin.y + body.size;
 			body.velocity.y *= -body.restitution;
 		}
 	}
